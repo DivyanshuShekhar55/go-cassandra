@@ -42,13 +42,22 @@ func NewManager(ctx context.Context) *Manager {
 }
 
 func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
+
 	log.Println("New Connection")
+
+	userId := r.URL.Query().Get("id")
+
+	if userId == "" {
+		http.Error(w, "userID not provided", http.StatusBadRequest)
+		return
+	}
+
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := NewClient(conn, m)
+	client := NewClient(conn, m, userId)
 	m.addClient(client)
 }
 
@@ -56,7 +65,7 @@ func (m *Manager) addClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.clients[client] = true
+	m.clients[client]=true
 }
 
 func (m *Manager) removeClient(client *Client) {
@@ -72,3 +81,4 @@ func (m *Manager) removeClient(client *Client) {
 		delete(m.clients, client)
 	}
 }
+
