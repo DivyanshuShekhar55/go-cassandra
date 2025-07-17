@@ -48,7 +48,8 @@ func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	log.Println(conn)
+	client := NewClient(conn, m)
+	m.addClient(client)
 }
 
 func (m *Manager) addClient(client *Client) {
