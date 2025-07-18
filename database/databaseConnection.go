@@ -42,3 +42,20 @@ func getBucketForTime(t time.Time) string {
 	year, week := t.ISOWeek()
 	return fmt.Sprintf("%d-W%02d", year, week)
 }
+
+func ExecuteIterableQuery(query string, args ...interface{}) ([]any, error){
+	var result []any
+	var item any 
+
+	iter := Connection.Session.Query(query, args).Iter()
+
+	for iter.Scan(&item){
+		tmp := item
+		result = append(result, tmp)
+	}
+
+	if err := iter.Close(); err != nil {
+        return nil, err
+    }
+    return result, nil
+}
