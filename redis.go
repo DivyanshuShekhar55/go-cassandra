@@ -24,6 +24,8 @@ func NewRedisConnPool() {
 func PubSub() {
 	SERVERID := os.Getenv("SERVERID")
 
+	// TODO : find out what the server id here refers to
+
 	subscriber := RedisConn.Subscribe(redisCtx, SERVERID)
 
 	for {

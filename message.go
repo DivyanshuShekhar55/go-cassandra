@@ -1,15 +1,18 @@
 package main
 
-import "time"
+import (
+	"time"
+
+	"github.com/gocql/gocql"
+)
 
 type Message struct {
-	ID      string
-	Payload string `json:"payload"`
-	// author will be user-id and name
-	// we are de-normalising maybe add profile pic too (Cassandra has de-normalisation)
-	AuthorId   string    `json:"authorID"`
-	AuthorName string    `json:"authorName"`
-	Group      bool      `json:"isGroup"`
-	GroupId    string    `json:"groupID,omitempty"`
-	Timestamp  time.Time `json:"timestamp"`
+    GroupID      string
+    MsgID        gocql.UUID
+    SenderID     string
+    SenderName   string
+    //SenderAvatar string
+    Content      string
+    Timestamp    time.Time
+    Bucket       string
 }
