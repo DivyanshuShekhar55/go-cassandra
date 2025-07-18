@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
+	"github.com/DivyanshuShekhar55/go-cassandra.git/model"
 	"github.com/gorilla/websocket"
 )
 
@@ -65,7 +68,35 @@ func (m *Manager) addClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.clients[client]=true
+	m.clients[client] = true
+	clients[client.userId] = client.conn
+
+	groups, err := model.FetchAllUserGroups(client.userId)
+
+	if err != nil {
+		fmt.Println("error getting user groups")
+		// do something cause its an issue
+		// maybe, handle (retry or disconnect the client, etc)
+		return
+	}
+
+	// TODO : get server-id for the current server
+	serverId := os.Getenv("SERVERID")
+
+	for _, group := range groups {
+		err := AddUserToGroupServer(group, serverId, client.userId)
+		if err != nil {
+			fmt.Println("Could not add user to Redis group-server:", err)
+			// Optionally handle/retry/fail here
+		}
+
+		//  Mark this server as active for the group for routing
+		err = AddActiveServerToGroup(group, serverId)
+		if err != nil {
+			fmt.Println("Could not mark server as active for group:", err)
+		}
+	}
+
 }
 
 func (m *Manager) removeClient(client *Client) {
@@ -80,5 +111,8 @@ func (m *Manager) removeClient(client *Client) {
 		// remove from active list
 		delete(m.clients, client)
 	}
-}
 
+	// TODO : whenever user disconnects remove from group-server on redis also
+	// also if the user is last online member of this group on the server
+	// then remove the server from active group server
+}

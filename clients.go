@@ -111,6 +111,17 @@ func Send() {
 	}
 }
 
-func groupMessage(message model.Message) {}
+func groupMessage(message model.Message) {
+	//jsonRes := model.Message{}
+	// TODOs :
+	// get all the servers where group members are
+	// send a braodcast message to each server via pubsub
 
+}
+
+// TODO :
+// create a listener on server that when group msg comes
+// get all the users on the server of that group and send them message
+
+// TODO : private message chat feature
 func privateMessage(message model.Message, client *websocket.Conn) {}

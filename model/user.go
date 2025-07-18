@@ -28,9 +28,7 @@ func FetchAllUserGroups(userId string) (groups []string, err error) {
 	query := `SELECT group_id FROM user_groups WHERE user_id = ?`
 	result, err := db.ExecuteIterableQuery(query, uuid)
 	if err != nil {
-		fmt.Printf("Error getting user groups")
-		// also may need to retry or panic maybe
-		// because it's a big error
+		// return error for now will be handled in manager.go
 		return nil, err
 	}
 
