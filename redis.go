@@ -41,3 +41,46 @@ func PubSub() {
 
 	}
 }
+
+// for sending group messages keep a set in redis
+// use key = group:GROUPID:server:SERVERID
+// and corresponding value as user-id
+// when user sends msg, check for the group id and send
+// msg to all members on all servers with same group-id
+func AddUserToGroupServer(groupId, serverId, userId string) error {
+	key := fmt.Sprintf("group:%s:server:%s", groupId, serverId)
+	err := RedisConn.SAdd(redisCtx, key, userId)
+	if err != nil {
+		// TODO : what else can be done here ??
+		fmt.Println("couldn't add user to group-server")
+		return err.Err()
+	}
+	return nil
+}
+
+func RemoveUserFromGroupServer(groupId, serverId, userId string) error {
+	key := fmt.Sprintf("group:%s:server:%s", groupId, serverId)
+	return RedisConn.SRem(redisCtx, key, userId).Err()
+}
+
+func GetGroupMembersOnServer(groupId, serverId string) ([]string, error) {
+	key := fmt.Sprintf("group:%s:server:%s", groupId, serverId)
+
+	// as the redis set docs put it ...
+	// SMEMBERS is O(n) for set sizes in lakhs
+	// look for better ways to handle this then
+	return RedisConn.SMembers(redisCtx, key).Result()
+}
+
+// following fn is useful for routing purposes
+// add to list of all servers where people belonging to a group are present
+func AddActiveServerToGroup(groupId, serverId string) error {
+	key := fmt.Sprintf("group:%s:activeServers", groupId)
+	return RedisConn.SAdd(redisCtx, key, serverId).Err()
+}
+
+// get list of all servers where people belonging to a group are present
+func GetActiveServersForGroup(groupId string) ([]string, error) {
+	key := fmt.Sprintf("group:%s:activeServers", groupId)
+	return RedisConn.SMembers(redisCtx, key).Result()
+}
