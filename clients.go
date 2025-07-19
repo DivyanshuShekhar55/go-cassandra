@@ -72,50 +72,45 @@ func (client *Client) receiveMessage() {
 
 		// next if the msg was sent in a group send to all members
 		if r.Group {
-			// send to db
-			// fetch members of group
-			// send to members
-
-			//model.SaveMessageGroupChat()
+			// TODO :
 		}
 
 	}
 }
 
-func Send() {
+func (client *Client) Send(msg string) {
 
-	// forever loop to keep listening for this send events
-	for {
-		msg := <-broadcast
-		message := model.Message{}
-		if err := json.Unmarshal([]byte(msg.Payload), &message); err != nil {
-			fmt.Println("message type not correct")
-			// should we panic ??
-			panic(err)
-		}
-
-		if message.Group {
-			groupMessage(message)
-			continue // skip rest of body for this msg
-		}
-
-		// private message
-		client := clients[message.Receiver]
-		if client == nil {
-			fmt.Println("receiver offline")
-			continue
-		}
-
-		privateMessage(message, client)
-
+	// get msg from frontend via json
+	// called only when user clicks "send", no braodcasts here
+	//msg := <-broadcast
+	message := model.Message{}
+	if err := json.Unmarshal([]byte(msg), &message); err != nil {
+		fmt.Println("message type not correct")
+		// should we panic ??
+		panic(err)
 	}
+
+	if message.Group {
+		groupMessage(message)
+		return // skip rest of body for this msg
+	}
+
+	// private message
+	receiver := clients[message.Receiver]
+	if client == nil {
+		fmt.Println("receiver offline")
+		return
+	}
+
+	privateMessage(message, receiver)
+
 }
 
 func groupMessage(message model.Message) {
-	//jsonRes := model.Message{}
-	// TODOs :
-	// get all the servers where group members are
-	// send a braodcast message to each server via pubsub
+	// TODO :
+	/*
+		1. call the manager's (ie., the server's) send event to that group topic
+	*/
 
 }
 

@@ -155,3 +155,17 @@ func (m *Manager) removeClient(client *Client) {
 		}
 	}
 }
+
+/* TODO : PUBSUB LISTENER FUNCTION
+1. listen to "msg receive" events
+2. once a msg comes check all clients from the same group
+3. loop on all clients and send them the msg
+
+*/
+
+/* TODO : PUBSUB SEND EVENT
+1. called when user clicks "send" event
+2. publish msg to that group's pubsub
+3. write to cassandra
+
+*/
