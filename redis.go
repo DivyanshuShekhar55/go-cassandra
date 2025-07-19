@@ -84,3 +84,22 @@ func GetActiveServersForGroup(groupId string) ([]string, error) {
 	key := fmt.Sprintf("group:%s:activeServers", groupId)
 	return RedisConn.SMembers(redisCtx, key).Result()
 }
+
+// remove an active server from list
+// use when no more members are active on the server for that group
+func RemoveActiveServerForGroup(groupId, serverId string) error {
+	key := fmt.Sprintf("group:%s:activeServers", groupId)
+	return RedisConn.SRem(redisCtx, key, serverId).Err()
+}
+
+// useful during removing server from active servers for group
+func CheckRemainingGroupMembersOnServer(groupId, serverId string) (count int64, err error) {
+	key := fmt.Sprintf("group:%s:server:%s", groupId, serverId)
+	count, err = RedisConn.SCard(redisCtx, key).Result()
+
+	if err != nil {
+		return -1, err // returns -1 for error
+	}
+
+	return count, nil
+}
