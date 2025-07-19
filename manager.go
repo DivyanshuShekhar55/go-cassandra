@@ -20,6 +20,9 @@ var (
 	}
 )
 
+// TODO : get server-id for the current server
+var serverId = os.Getenv("SERVERID")
+
 func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 
@@ -80,39 +83,75 @@ func (m *Manager) addClient(client *Client) {
 		return
 	}
 
-	// TODO : get server-id for the current server
-	serverId := os.Getenv("SERVERID")
-
 	for _, group := range groups {
 		err := AddUserToGroupServer(group, serverId, client.userId)
 		if err != nil {
 			fmt.Println("Could not add user to Redis group-server:", err)
 			// Optionally handle/retry/fail here
+			continue // try for othe groups
 		}
 
 		//  Mark this server as active for the group for routing
 		err = AddActiveServerToGroup(group, serverId)
 		if err != nil {
 			fmt.Println("Could not mark server as active for group:", err)
+			continue // try for other groups
 		}
 	}
 
 }
 
 func (m *Manager) removeClient(client *Client) {
+	// Lock state (assume m.clients and clients are protected concurrently)
 	m.Lock()
 	defer m.Unlock()
 
-	// check if client exists, if yes delete
+	// Only proceed if client exists
 	if _, ok := m.clients[client]; ok {
-		//clean-up with closing connection
-		client.conn.Close()
+		// 1. Clean up: close conn, with error handling
+		err := client.conn.Close()
+		if err != nil {
+			fmt.Println("err closing connection:", err)
+			// schedule for background retry/cleanup
+		}
 
-		// remove from active list
+		// 2. Remove from in-memory maps
 		delete(m.clients, client)
-	}
+		delete(clients, client.userId)
 
-	// TODO : whenever user disconnects remove from group-server on redis also
-	// also if the user is last online member of this group on the server
-	// then remove the server from active group server
+		// 3. Fetch all groups to which this user belonged
+		groups, err := model.FetchAllUserGroups(client.userId)
+		if err != nil {
+			fmt.Printf("error fetching groups of user %s for removing: %v\n", client.userId, err)
+			// Optionally: retry/fallback, but safe to return
+			return
+		}
+
+		for _, group := range groups {
+			// 4. Remove user from group-server set in Redis
+			err := RemoveUserFromGroupServer(group, serverId, client.userId)
+			if err != nil {
+				// TODO: add robust retry logic (exponential backoff or retry queue)
+				fmt.Printf("error removing user %s from group-server (%s): %v\n", client.userId, group, err)
+				// Continue attempting to remove from other groups
+			}
+
+			// 5. Check if any users left in this group on this server
+			count, err := CheckRemainingGroupMembersOnServer(group, serverId)
+			if err != nil {
+				fmt.Printf("error checking online members for group %s: %v\n", group, err)
+				// optionally: retry logic or notification
+				continue
+			}
+
+			// 6. If no members left, remove this server from activeServers for group
+			if count == 0 {
+				err := RemoveActiveServerForGroup(group, serverId)
+				if err != nil {
+					// TODO: possible retry logic
+					fmt.Printf("error removing server %s from activeServers for group %s: %v\n", serverId, group, err)
+				}
+			}
+		}
+	}
 }
