@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	//"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -102,4 +103,48 @@ func CheckRemainingGroupMembersOnServer(groupId, serverId string) (count int64, 
 	}
 
 	return count, nil
+}
+
+// func to listen to if any group message comes
+// the server subscribes to the group on pubsub and listens for messages
+func SubscribeToGroup(groupChannelKey string, broadcast chan<- *redis.Message) (func(), error) {
+
+	subscriber := RedisConn.Subscribe(redisCtx, groupChannelKey)
+	// Optionally: Use WaitGroup to coordinate shutdown/cleanup if many goroutines
+	quit := make(chan struct{})
+	// Run a forever listener for this subscription on a goroutine
+	go func() {
+		for {
+			select {
+			case <-quit:
+				subscriber.Close()
+				return
+			default:
+				msg, err := subscriber.ReceiveMessage(redisCtx)
+				if err != nil {
+					fmt.Println("Error receiving message from Redis:", err)
+					//time.Sleep(time.Second) // Backoff before retry
+					continue
+				}
+				// Deliver the message to broadcast channel for processing/fanout
+				// the listener on broadcast channel will send the
+				// msg to all users on this listener server
+				broadcast <- msg
+			}
+		}
+	}()
+	// Return a cleanup function to unsubscribe and quit
+	return func() { close(quit) }, nil
+}
+
+// func to publish group messages to redis pubsub
+func PublishGroupMessage(group string, payload []byte) error{
+	
+	// returns count of subscribers, meh i don't need that
+	_, err:= RedisConn.Publish(redisCtx, group, payload).Result()
+
+	if err != nil {
+		return err
+	}
+	return nil
 }
