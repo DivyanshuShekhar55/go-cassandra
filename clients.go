@@ -18,7 +18,6 @@ var broadcast = make(chan *redis.Message)
 
 // 'clients' map user-id to ws connection
 // TODO : what is the ClientList map then
-// TODO : also make a map for server id and group members connected to the server
 var clients = make(map[string]*websocket.Conn)
 
 type Client struct {
@@ -28,7 +27,7 @@ type Client struct {
 }
 
 // map userId to connection
-type ClientList map[*Client]bool
+type ClientList map[string]*Client
 
 func NewClient(conn *websocket.Conn, m *Manager, userId string) *Client {
 	return &Client{
@@ -38,6 +37,9 @@ func NewClient(conn *websocket.Conn, m *Manager, userId string) *Client {
 	}
 }
 
+// listen to messages from frontend from user
+// do some validations
+// send the message for further processing
 func (client *Client) receiveMessage() {
 
 	defer func() {
@@ -48,7 +50,7 @@ func (client *Client) receiveMessage() {
 
 	// set max size of the connection in bytes
 	// calculate the message size of content user can send
-	client.conn.SetReadLimit(512)
+	client.conn.SetReadLimit(1024 * 2) // 2Mb
 
 	// TODO : add pong response time deadline
 	// see percy's client.go
@@ -58,30 +60,23 @@ func (client *Client) receiveMessage() {
 		_, msg, errConn := client.conn.ReadMessage()
 
 		if errConn != nil {
-			log.Println("read err", errConn)
+			log.Printf("ws read err for user %s : %s", client.userId, errConn)
 			return
 		}
 
-		var r model.Message
-		if err := json.Unmarshal(msg, &r); err != nil {
-			log.Println("error unmarshalling read msg", err.Error())
+		// Optional: Validate message size again at application level
+		if len(msg) == 0 || len(msg) > 2048 {
+			log.Printf("Invalid message size from user %s\n", client.userId)
 			continue
 		}
 
-		// TODO : validate the message 'r'
-
-		// next if the msg was sent in a group send to all members
-		if r.Group {
-			// TODO :
-		}
+		client.Send(string(msg))
 
 	}
 }
 
+// logic for processing sending of messages by a user
 func (client *Client) Send(msg string) {
-
-	// get msg from frontend via json
-	// called only when user clicks "send", no braodcasts here
 
 	message := model.Message{}
 	if err := json.Unmarshal([]byte(msg), &message); err != nil {
@@ -143,10 +138,6 @@ func groupMessage(message model.Message) error {
 	return nil
 
 }
-
-// TODO :
-// create a listener on server that when group msg comes
-// get all the users on the server of that group and send them message
 
 // TODO : private message chat feature
 func privateMessage(message model.Message, client *websocket.Conn) {}
