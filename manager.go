@@ -92,13 +92,20 @@ func (m *Manager) addClient(client *Client) {
 		}
 
 		//  Mark this server as active for the group for routing
-		err = AddActiveServerToGroup(group, serverId)
+		// if not already added
+		count, err := CheckRemainingGroupMembersOnServer(group, serverId)
 		if err != nil {
-			fmt.Println("Could not mark server as active for group:", err)
-			continue // try for other groups
+			// retry
+			fmt.Println("Coudn't fetch count of group members on server", serverId)
+		}
+		if count == 1 {
+			err = AddActiveServerToGroup(group, serverId)
+			if err != nil {
+				fmt.Println("Could not mark server as active for group:", err)
+				continue // try for other groups
+			}
 		}
 	}
-
 }
 
 func (m *Manager) removeClient(client *Client) {
@@ -156,12 +163,16 @@ func (m *Manager) removeClient(client *Client) {
 	}
 }
 
-/* TODO : PUBSUB LISTENER FUNCTION
+/*
+	TODO : PUBSUB LISTENER FUNCTION
+
 1. listen to "msg receive" events
 2. once a msg comes check all clients from the same group
 3. loop on all clients and send them the msg
-
 */
+func ListenToChannel() {
+
+}
 
 /* TODO : PUBSUB SEND EVENT
 1. called when user clicks "send" event
