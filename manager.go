@@ -68,6 +68,7 @@ func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 	}
 	client := NewClient(conn, m, userId)
 	m.addClient(client)
+	go client.receiveMessage()
 }
 
 func (m *Manager) addClient(client *Client) {
