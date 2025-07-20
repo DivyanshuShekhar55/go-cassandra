@@ -35,8 +35,8 @@ func checkOrigin(r *http.Request) bool {
 }
 
 type Manager struct {
-	clients ClientList
-
+	clients                                ClientList
+	UnsubscribeServerFromGroupChannelFuncs map[string]func()
 	sync.RWMutex
 }
 
@@ -104,6 +104,21 @@ func (m *Manager) addClient(client *Client) {
 				fmt.Println("Could not mark server as active for group:", err)
 				continue // try for other groups
 			}
+
+			// TODO :
+			// add the group to pubsub
+			// so that server can listen to incoming messages
+			// add the cancel func returned to map of unsubscribe funcs
+			// this map is used when remoing server from pubsub in removeClient func
+			groupChannelKey := fmt.Sprintf("group:%s:messages", group)
+			cancelFunc, err := SubscribeToGroup(groupChannelKey, broadcast)
+
+			if err != nil {
+				// do something
+				continue
+			}
+
+			m.UnsubscribeServerFromGroupChannelFuncs[groupChannelKey] = cancelFunc
 		}
 	}
 }
@@ -158,6 +173,18 @@ func (m *Manager) removeClient(client *Client) {
 					// TODO: possible retry logic
 					fmt.Printf("error removing server %s from activeServers for group %s: %v\n", serverId, group, err)
 				}
+
+				// TODO :
+				// unsubscribe from pubsub
+				// so that server doesn't listen to any messages for this group
+				groupChannelKey := fmt.Sprintf("group:%s:messages", group)
+				cancelFunc, ok := m.UnsubscribeServerFromGroupChannelFuncs[groupChannelKey]
+				if !ok {
+					fmt.Println("already unsubscribed from server")
+					continue
+				}
+
+				cancelFunc()
 			}
 		}
 	}
