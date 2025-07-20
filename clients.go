@@ -82,16 +82,19 @@ func (client *Client) Send(msg string) {
 
 	// get msg from frontend via json
 	// called only when user clicks "send", no braodcasts here
-	//msg := <-broadcast
+
 	message := model.Message{}
 	if err := json.Unmarshal([]byte(msg), &message); err != nil {
-		fmt.Println("message type not correct")
-		// should we panic ??
-		panic(err)
+		fmt.Println("message format not correct")
+		return
 	}
 
 	if message.Group {
-		groupMessage(message)
+		err := groupMessage(message)
+
+		if err != nil {
+			fmt.Println("error sending message to group")
+		}
 		return // skip rest of body for this msg
 	}
 
@@ -104,13 +107,40 @@ func (client *Client) Send(msg string) {
 
 	privateMessage(message, receiver)
 
+	/* TODO :
+	1. take care of same user online from multiple devices
+	2. check for rate-limiting and message size
+	3. look more on cassandra batching
+	*/
+
 }
 
-func groupMessage(message model.Message) {
-	// TODO :
-	/*
-		1. call the manager's (ie., the server's) send event to that group topic
-	*/
+func groupMessage(message model.Message) error {
+	// 1. persist to cassandra
+	err := model.SaveMessageGroupChat(message)
+	if err != nil {
+		fmt.Println("error while writing to db")
+		return err
+	}
+
+	// 2. write to pub sub channel made for that group
+	// maybe i should handle this group to groupTopic key conversion and marshal
+	// in a diff func for cleanliness
+	groupTopic := fmt.Sprintf("group:%s:messages", message.GroupID)
+	payload, err := json.Marshal(message)
+
+	if err != nil {
+		fmt.Println("error parsing group message")
+		return err
+	}
+
+	err = PublishGroupMessage(groupTopic, payload)
+
+	if err != nil {
+		fmt.Println("error publishing to pubsub")
+	}
+
+	return nil
 
 }
 
