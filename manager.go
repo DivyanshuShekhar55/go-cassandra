@@ -6,10 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/DivyanshuShekhar55/go-cassandra.git/model"
 	"github.com/gorilla/websocket"
+	"github.com/redis/go-redis/v9"
 )
 
 var (
@@ -42,7 +44,8 @@ type Manager struct {
 
 func NewManager(ctx context.Context) *Manager {
 	m := &Manager{
-		clients: make(ClientList),
+		clients:                                make(ClientList),
+		UnsubscribeServerFromGroupChannelFuncs: make(map[string]func()),
 	}
 	return m
 }
@@ -71,7 +74,7 @@ func (m *Manager) addClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
 
-	m.clients[client] = true
+	m.clients[client.userId] = client
 	clients[client.userId] = client.conn
 
 	groups, err := model.FetchAllUserGroups(client.userId)
@@ -105,7 +108,6 @@ func (m *Manager) addClient(client *Client) {
 				continue // try for other groups
 			}
 
-			// TODO :
 			// add the group to pubsub
 			// so that server can listen to incoming messages
 			// add the cancel func returned to map of unsubscribe funcs
@@ -129,7 +131,7 @@ func (m *Manager) removeClient(client *Client) {
 	defer m.Unlock()
 
 	// Only proceed if client exists
-	if _, ok := m.clients[client]; ok {
+	if _, ok := m.clients[client.userId]; ok {
 		// 1. Clean up: close conn, with error handling
 		err := client.conn.Close()
 		if err != nil {
@@ -138,7 +140,7 @@ func (m *Manager) removeClient(client *Client) {
 		}
 
 		// 2. Remove from in-memory maps
-		delete(m.clients, client)
+		delete(m.clients, client.userId)
 		delete(clients, client.userId)
 
 		// 3. Fetch all groups to which this user belonged
@@ -174,9 +176,9 @@ func (m *Manager) removeClient(client *Client) {
 					fmt.Printf("error removing server %s from activeServers for group %s: %v\n", serverId, group, err)
 				}
 
-				// TODO :
 				// unsubscribe from pubsub
 				// so that server doesn't listen to any messages for this group
+
 				groupChannelKey := fmt.Sprintf("group:%s:messages", group)
 				cancelFunc, ok := m.UnsubscribeServerFromGroupChannelFuncs[groupChannelKey]
 				if !ok {
@@ -185,6 +187,8 @@ func (m *Manager) removeClient(client *Client) {
 				}
 
 				cancelFunc()
+				delete(m.UnsubscribeServerFromGroupChannelFuncs, groupChannelKey)
+
 			}
 		}
 	}
@@ -197,13 +201,49 @@ func (m *Manager) removeClient(client *Client) {
 2. once a msg comes check all clients from the same group
 3. loop on all clients and send them the msg
 */
-func ListenToChannel() {
+func ListenToChannel(broadcast <-chan *redis.Message, m *Manager) {
 
+	for msg := range broadcast { // This loop runs forever
+
+		// extract group-id +e.g. "group:123:messages" => "123"
+		groupId := extractGroupIdFromChannel(msg.Channel)
+
+		// acquire lock on the clients map
+		// map every group user and send him the message
+		m.RLock()
+		m.FanOutMessage(msg.Payload, groupId)
+		m.RUnlock()
+	}
 }
 
-/* TODO : PUBSUB SEND EVENT
-1. called when user clicks "send" event
-2. publish msg to that group's pubsub
-3. write to cassandra
+func extractGroupIdFromChannel(groupChannelKey string) string {
+	parts := strings.Split(groupChannelKey, ":")
+	if len(parts) >= 2 {
+		return parts[1]
+	}
+	return ""
+}
 
-*/
+func (m *Manager) FanOutMessage(payload string, groupId string) error {
+	clientList, err := GetGroupMembersOnServer(groupId, serverId)
+	if err != nil {
+		log.Printf("unable to get group members for group %s: %v", groupId, err)
+		return err
+	}
+
+	for _, userId := range clientList {
+		clientObj := m.clients[userId]
+		if clientObj == nil {
+			// Maybe client disconnected; skip or log if desired
+			continue
+		}
+		err := clientObj.conn.WriteMessage(websocket.TextMessage, []byte(payload))
+		if err != nil {
+			log.Printf("error sending message to user %s: %v", userId, err)
+			// Optionally, close and remove the client if err is serious
+			// clientObj.manager.removeClient(clientObj)
+			// Or schedule for retry/cleanup
+		}
+	}
+	return nil
+}
