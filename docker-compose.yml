@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  haproxy:
+    image: haproxy:latest
+    volumes:
+      - ./haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - goapp
+
+  goapp:
+    build: ./go
+    environment:
+      - REDIS_HOST=redis
+      - CASSANDRA_HOST=cassandra
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - redis
+      - cassandra
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  cassandra:
+    image: cassandra:4.0
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_START_RPC=true
+    restart: always
