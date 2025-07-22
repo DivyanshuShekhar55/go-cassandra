@@ -29,10 +29,10 @@ func checkOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 
 	switch origin {
-	case "http://localhost:8000":
-		return true
+	// case "":
+	// 	return true
 	default:
-		return false
+		return true
 	}
 }
 
@@ -52,7 +52,7 @@ func NewManager(ctx context.Context) *Manager {
 
 func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 
-	log.Println("New Connection")
+	log.Println("New Connection Request")
 
 	userId := r.URL.Query().Get("id")
 
@@ -69,6 +69,10 @@ func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 	client := NewClient(conn, m, userId)
 	m.addClient(client)
 	go client.receiveMessage()
+
+	// acknowledge message to user
+	conn.WriteMessage(websocket.TextMessage, []byte("ws connection established"))
+
 }
 
 func (m *Manager) addClient(client *Client) {
@@ -124,6 +128,8 @@ func (m *Manager) addClient(client *Client) {
 			m.UnsubscribeServerFromGroupChannelFuncs[groupChannelKey] = cancelFunc
 		}
 	}
+
+	client.conn.WriteMessage(websocket.TextMessage, []byte("hello"))
 }
 
 func (m *Manager) removeClient(client *Client) {
