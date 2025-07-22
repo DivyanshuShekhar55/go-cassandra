@@ -24,8 +24,11 @@ FROM debian:bookworm-slim
 #     ca-certificates && \
 #     rm -rf /var/lib/apt/lists/*
 
-# 9. Copy the binary built in the first stage to the new image
-COPY --from=builder /app/server /app/server
 
-# 10. Set the command to run your application
-CMD ["/app/server"]
+# 9. Copy the binary and frontend directory built in the first stage to the new image
+COPY --from=builder /app/server /app/server
+COPY --from=builder /app/frontend /app/frontend
+
+# 10. Set the working directory and command to run your application
+WORKDIR /app
+CMD ["./server"]
