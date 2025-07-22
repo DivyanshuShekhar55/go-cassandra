@@ -8,7 +8,7 @@ import (
     "time"
 
     "github.com/gocql/gocql"
-    "github.com/google/uuid"
+   // "github.com/google/uuid"
 )
 
 func must(err error) {
@@ -68,17 +68,17 @@ func main() {
     fmt.Println("Seeding test data...")
 
     // Create 2 groups and 3 users
-    groupA := uuid.New()
-    groupB := uuid.New()
-    user1 := uuid.New()
-    user2 := uuid.New()
-    user3 := uuid.New()
+    groupA := gocql.TimeUUID()
+    groupB := gocql.TimeUUID()
+    user1 := gocql.TimeUUID()
+    user2 := gocql.TimeUUID()
+    user3 := gocql.TimeUUID()
     now := time.Now()
 
     // user1 and user2 in groupA; user3 alone in groupB
     members := []struct {
-        groupID uuid.UUID
-        userID  uuid.UUID
+        groupID gocql.UUID
+        userID  gocql.UUID
     }{
         {groupA, user1},
         {groupA, user2},
