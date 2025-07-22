@@ -1,6 +1,49 @@
 version: '3.9'
 
 services:
+  cassandra:
+    image: cassandra:4.0
+    ports:
+      - "9042:9042"
+    environment:
+      - CASSANDRA_START_RPC=true
+    healthcheck:
+      test: ["CMD", "cqlsh", "-e", "describe keyspaces"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    restart: always
+
+  seed:
+    build: ./seed
+    environment:
+      - CASSANDRA_HOST=cassandra
+    depends_on:
+      cassandra:
+        condition: service_healthy
+    restart: "no"
+
+  goapp:
+    build: ./go
+    environment:
+      - REDIS_HOST=redis
+      - CASSANDRA_HOST=cassandra
+    # ports:
+    #   - "8080-8082:8080"  # Maps to host ports 8080, 8081, 8082
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+      redis:
+        condition: service_started
+    restart: always
+    deploy:
+      replicas: 3
+
   haproxy:
     image: haproxy:latest
     volumes:
@@ -10,29 +53,3 @@ services:
       - "443:443"
     depends_on:
       - goapp
-
-  goapp:
-    build: ./go
-    environment:
-      - REDIS_HOST=redis
-      - CASSANDRA_HOST=cassandra
-    ports:
-      - "8080:8080"
-    restart: always
-    depends_on:
-      - redis
-      - cassandra
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: always
-
-  cassandra:
-    image: cassandra:4.0
-    ports:
-      - "9042:9042"
-    environment:
-      - CASSANDRA_START_RPC=true
-    restart: always
