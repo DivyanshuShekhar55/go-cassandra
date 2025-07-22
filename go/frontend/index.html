@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Golang WebSocket Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; }
+        #chat { border: 1px solid #ccc; height: 400px; overflow-y: auto; margin-bottom: 10px; padding: 10px; }
+        #message-input { width: 80%; }
+    </style>
+</head>
+<body>
+    <h2>Chat App</h2>
+    <div>
+        <label>User ID: <input type="text" id="userId" placeholder="Enter user ID"></label>
+        <button id="connect-btn">Connect</button>
+    </div>
+    <div id="chat"></div>
+    <input type="text" id="message-input" placeholder="Type message..." disabled>
+    <button id="send-btn" disabled>Send</button>
+
+    <script>
+        let ws;
+        const chat = document.getElementById("chat");
+        const userIdInput = document.getElementById("userId");
+        const connectBtn = document.getElementById("connect-btn");
+        const messageInput = document.getElementById("message-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        connectBtn.onclick = function() {
+            if (ws) ws.close();
+            const userId = userIdInput.value.trim();
+            if (!userId) {
+                alert("Enter a user ID");
+                return;
+            }
+            ws = new WebSocket("ws://" + window.location.host + "/ws?id=" + encodeURIComponent(userId));
+            ws.onopen = function() {
+                logMessage("System: Connected.");
+                messageInput.disabled = false;
+                sendBtn.disabled = false;
+            };
+            ws.onmessage = function(evt) {
+                logMessage(evt.data);
+            };
+            ws.onclose = function() {
+                logMessage("System: Disconnected.");
+                messageInput.disabled = true;
+                sendBtn.disabled = true;
+            };
+            ws.onerror = function(e) {
+                logMessage("System: Error " + e);
+            };
+        };
+
+        sendBtn.onclick = function() {
+            sendMessage();
+        };
+
+        messageInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const msg = messageInput.value.trim();
+            if (!msg) return;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(msg);
+                logMessage("Me: " + msg);
+                messageInput.value = "";
+            }
+        }
+
+        function logMessage(msg) {
+            const div = document.createElement("div");
+            div.textContent = msg;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html>
