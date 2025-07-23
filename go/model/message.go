@@ -22,7 +22,7 @@ type Message struct {
 }
 
 func SaveMessageGroupChat(message Message) error {
-	query := `INSERT INTO group_chat( group_id, bucket, msg_id, sender_id, sender_name, content, timestamp) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO group_messages( group_id, bucket, msg_id, sender_id, sender_name, content, timestamp) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
 
 	err := db.ExecuteQuery(query, message.GroupID, message.Bucket, message.MsgID, message.SenderID, message.SenderName, message.Content, message.Timestamp)
 

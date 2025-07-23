@@ -3,9 +3,13 @@ package main
 import (
 	"context"
 	"net/http"
+
+	db "github.com/DivyanshuShekhar55/go-cassandra.git/database"
 )
 
 func main() {
+	db.SetupDBConnection()
+	NewRedisConnPool()
 	rootCtx := context.Background()
 	ctx, cancel := context.WithCancel(rootCtx)
 
