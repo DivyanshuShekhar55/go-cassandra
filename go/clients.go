@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
+	
 	"github.com/DivyanshuShekhar55/go-cassandra.git/model"
+	"github.com/DivyanshuShekhar55/go-cassandra.git/utils"
+	"github.com/gocql/gocql"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
@@ -83,6 +87,11 @@ func (client *Client) Send(msg string) {
 		fmt.Println("message format not correct")
 		return
 	}
+
+	// fill in remaining fields of msg struct
+	message.Bucket = utils.GetBucketForTime(time.Now().UTC())
+	message.MsgID = gocql.TimeUUID()
+	message.Timestamp = time.Now().UTC()
 
 	if message.Group {
 		err := groupMessage(message)

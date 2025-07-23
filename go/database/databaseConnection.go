@@ -2,7 +2,6 @@ package db
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/gocql/gocql"
 )
@@ -36,11 +35,6 @@ func ExecuteQuery(query string, args ...interface{}) error {
 func SelectQuery(query string, args ...interface{}) *gocql.Query {
 	data := Connection.Session.Query(query, args...)
 	return data
-}
-
-func getBucketForTime(t time.Time) string {
-	year, week := t.ISOWeek()
-	return fmt.Sprintf("%d-W%02d", year, week)
 }
 
 func ExecuteIterableQuery(query string, args ...interface{}) ([]any, error){
