@@ -1,84 +1,291 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Golang WebSocket Chat</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: auto; }
-        #chat { border: 1px solid #ccc; height: 400px; overflow-y: auto; margin-bottom: 10px; padding: 10px; }
-        #message-input { width: 80%; }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 900px;
+        margin: auto;
+        display: flex;
+        height: 90vh;
+      }
+      #sidebar {
+        width: 200px;
+        border-right: 1px solid #ccc;
+        padding: 10px;
+        box-sizing: border-box;
+        overflow-y: auto;
+      }
+      #sidebar h3 {
+        margin-top: 0;
+      }
+      #group-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+      #group-list li {
+        padding: 8px;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      #group-list li.selected {
+        background-color: #007bff;
+        color: white;
+      }
+      #main {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        box-sizing: border-box;
+      }
+      #chat {
+        border: 1px solid #ccc;
+        height: 100%;
+        overflow-y: auto;
+        margin-bottom: 10px;
+        padding: 10px;
+        background: #fafafa;
+      }
+      #message-input {
+        width: 80%;
+        padding: 8px;
+        font-size: 1em;
+        box-sizing: border-box;
+      }
+      #send-btn {
+        padding: 8px 12px;
+        font-size: 1em;
+      }
+      #connection {
+        margin-bottom: 10px;
+      }
+      .message {
+        margin-bottom: 6px;
+      }
+      .message .sender {
+        font-weight: bold;
+      }
+      .system-message {
+        color: #666;
+        font-style: italic;
+        margin-bottom: 6px;
+      }
     </style>
-</head>
-<body>
-    <h2>Chat App</h2>
-    <div>
-        <label>User ID: <input type="text" id="userId" placeholder="Enter user ID"></label>
-        <button id="connect-btn">Connect</button>
+  </head>
+  <body>
+    <div id="sidebar">
+      <h3>Groups</h3>
+      <ul id="group-list"></ul>
     </div>
-    <div id="chat"></div>
-    <input type="text" id="message-input" placeholder="Type message..." disabled>
-    <button id="send-btn" disabled>Send</button>
+
+    <div id="main">
+      <div id="connection">
+        <label
+          >User ID: <input type="text" id="userId" placeholder="Enter user ID"
+        /></label>
+        <button id="connect-btn">Connect</button>
+      </div>
+      <div id="chat"></div>
+      <div>
+        <input
+          type="text"
+          id="message-input"
+          placeholder="Type message..."
+          disabled
+        />
+        <button id="send-btn" disabled>Send</button>
+      </div>
+    </div>
 
     <script>
-        let ws;
-        const chat = document.getElementById("chat");
-        const userIdInput = document.getElementById("userId");
-        const connectBtn = document.getElementById("connect-btn");
-        const messageInput = document.getElementById("message-input");
-        const sendBtn = document.getElementById("send-btn");
+      let ws;
+      let selectedGroupId = "";
+      const chat = document.getElementById("chat");
+      const userIdInput = document.getElementById("userId");
+      const connectBtn = document.getElementById("connect-btn");
+      const messageInput = document.getElementById("message-input");
+      const sendBtn = document.getElementById("send-btn");
+      const groupList = document.getElementById("group-list");
 
-        connectBtn.onclick = function() {
-            if (ws) ws.close();
-            const userId = userIdInput.value.trim();
-            if (!userId) {
-                alert("Enter a user ID");
-                return;
-            }
-            ws = new WebSocket("ws://" + window.location.host + "/ws?id=" + encodeURIComponent(userId));
-            ws.onopen = function() {
-                logMessage("System: Connected.");
-                messageInput.disabled = false;
-                sendBtn.disabled = false;
-            };
-            ws.onmessage = function(evt) {
-                logMessage(evt.data);
-            };
-            ws.onclose = function() {
-                logMessage("System: Disconnected.");
-                messageInput.disabled = true;
-                sendBtn.disabled = true;
-            };
-            ws.onerror = function(e) {
-                logMessage("System: Error " + e);
-            };
+      // Connect button handler
+      connectBtn.onclick = () => {
+        if (ws) ws.close();
+        const userId = userIdInput.value.trim();
+        if (!userId) {
+          alert("Enter a user ID");
+          return;
+        }
+
+        ws = new WebSocket(
+          "ws://" +
+            window.location.host +
+            "/ws?id=" +
+            encodeURIComponent(userId)
+        );
+
+        ws.onopen = () => {
+          logSystemMessage("Connected.");
+          messageInput.disabled = false;
+          sendBtn.disabled = false;
         };
 
-        sendBtn.onclick = function() {
-            sendMessage();
+        ws.onmessage = (evt) => {
+          // Try to parse JSON or fallback to plain text
+          try {
+            const data = JSON.parse(evt.data);
+
+            if (data.type === "groups") {
+              // data.groups is an array of group ID strings like "c146756b-66ca-11f0-bceb-0242ac130004"
+              populateGroups(data.groups);
+              if (data.groups.length > 0) selectGroup(data.groups[0]);
+              return;
+            }
+
+            // Process other types of messages (chat etc.)
+            showChatMessage(data);
+          } catch (err) {
+            // Not JSON, treat as plain message
+            logMessage(evt.data);
+          }
         };
 
-        messageInput.addEventListener("keydown", function(e) {
-            if (e.key === "Enter") {
-                sendMessage();
-            }
+        ws.onclose = () => {
+          logSystemMessage("Disconnected.");
+          messageInput.disabled = true;
+          sendBtn.disabled = true;
+          clearGroups();
+        };
+
+        ws.onerror = (e) => {
+          logSystemMessage("Error: " + e.message);
+        };
+      };
+
+      sendBtn.onclick = sendMessage;
+      messageInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendMessage();
+      });
+
+      function sendMessage() {
+        const content = messageInput.value.trim();
+        if (!content) return;
+
+        if (!selectedGroupId) {
+          alert("Select a group first.");
+          return;
+        }
+
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          // Build message object with required fields
+          const msgObj = {
+            group_id: selectedGroupId,
+            group: true,
+            sender_id: userIdInput.value.trim(),
+            content: content,
+            // Other fields like msg_id, timestamp, bucket will be added by backend
+          };
+
+          ws.send(JSON.stringify(msgObj));
+          logMessage(`Me (in ${selectedGroupId}): ${content}`);
+          messageInput.value = "";
+        }
+      }
+
+      // Sidebar population function
+      function populateGroups(groups) {
+        const groupList = document.getElementById("group-list");
+        groupList.innerHTML = "";
+        groups.forEach((groupId) => {
+          const li = document.createElement("li");
+          li.textContent = groupId; // Or make this a nicer name if available
+          li.dataset.groupId = groupId;
+          li.onclick = () => selectGroup(groupId);
+          groupList.appendChild(li);
         });
+      }
 
-        function sendMessage() {
-            const msg = messageInput.value.trim();
-            if (!msg) return;
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(msg);
-                logMessage("Me: " + msg);
-                messageInput.value = "";
-            }
+      // Group selection function (store selected group and highlight UI)
+      //let selectedGroupId = "";
+      function selectGroup(groupId) {
+        selectedGroupId = groupId;
+        const items = document.querySelectorAll("#group-list li");
+        items.forEach((li) => {
+          li.classList.toggle("selected", li.dataset.groupId === groupId);
+        });
+        logSystemMessage(`Selected group: ${groupId}`);
+        document.getElementById("chat").innerHTML = ""; // clear chat or load history as needed
+      }
+
+      // Clear groups from sidebar (on disconnect)
+      function clearGroups() {
+        groupList.innerHTML = "";
+        selectedGroupId = "";
+      }
+
+      // Select a group visually and set as active
+      function selectGroup(groupId) {
+        selectedGroupId = groupId;
+        Array.from(groupList.children).forEach((li) => {
+          if (li.dataset.groupId === groupId) {
+            li.classList.add("selected");
+          } else {
+            li.classList.remove("selected");
+          }
+        });
+        logSystemMessage(`Selected group: ${groupId}`);
+        chat.innerHTML = ""; // Optionally clear chat or load messages for that group here
+      }
+
+      // Log system messages like connection events
+      function logSystemMessage(msg) {
+        const div = document.createElement("div");
+        div.className = "system-message";
+        div.textContent = msg;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      // Log plain text messages
+      function logMessage(msg) {
+        const div = document.createElement("div");
+        div.textContent = msg;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      // Display structured chat messages
+      function showChatMessage(msg) {
+        // Optional: filter by selected group
+        if (msg.group_id && msg.group_id !== selectedGroupId) {
+          // Ignore messages from other groups for now
+          return;
         }
 
-        function logMessage(msg) {
-            const div = document.createElement("div");
-            div.textContent = msg;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-        }
+        const div = document.createElement("div");
+        div.className = "message";
+
+        // Format timestamp nicely
+        const timestamp = msg.timestamp
+          ? new Date(msg.timestamp).toLocaleTimeString()
+          : "";
+
+        div.innerHTML = `<span class="sender">${
+          msg.sender_name || msg.sender_id
+        }</span> [${timestamp}]: ${escapeHtml(msg.content)}`;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+      }
+
+      // Simple helper to prevent HTML injection
+      function escapeHtml(text) {
+        const div = document.createElement("div");
+        div.textContent = text;
+        return div.innerHTML;
+      }
     </script>
-</body>
+  </body>
 </html>
