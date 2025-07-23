@@ -9,16 +9,16 @@ import (
 )
 
 type Message struct {
-	GroupID    string
-	MsgID      gocql.UUID
-	SenderID   string
-	SenderName string
+	GroupID    string     `json:"group_id,omitempty"`
+	MsgID      gocql.UUID `json:"msg_id,omitempty"`
+	SenderID   string     `json:"sender_id"`
+	SenderName string     `json:"sender_name,omitempty"`
+	Receiver   string     `json:"receiver,omitempty"` // empty if group msg
+	Content    string     `json:"content"`
+	Timestamp  time.Time  `json:"timestamp,omitempty"`
+	Bucket     string     `json:"bucket,omitempty"`
+	Group      bool       `json:"group"`
 	//SenderAvatar string
-	Receiver string `json:"receiver,omitempty"` // empty if group msg
-	Content   string
-	Timestamp time.Time
-	Bucket    string
-	Group     bool
 }
 
 func SaveMessageGroupChat(message Message) error {

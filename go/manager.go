@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/DivyanshuShekhar55/go-cassandra.git/model"
+	"github.com/DivyanshuShekhar55/go-cassandra.git/utils"
 	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
@@ -75,6 +76,8 @@ func (m *Manager) serverWS(w http.ResponseWriter, r *http.Request) {
 
 }
 
+
+// fn is run whenever a new user comes
 func (m *Manager) addClient(client *Client) {
 	m.Lock()
 	defer m.Unlock()
@@ -88,6 +91,12 @@ func (m *Manager) addClient(client *Client) {
 		fmt.Println("error getting user groups")
 		// do something cause its an issue
 		// maybe, handle (retry or disconnect the client, etc)
+		return
+	}
+
+	err = utils.SendUserGroupListToUser(client.conn, groups)
+	if err != nil {
+		fmt.Printf("error sending user group for user %s: %v", client.userId, err)
 		return
 	}
 
