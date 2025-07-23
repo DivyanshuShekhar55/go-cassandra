@@ -47,6 +47,7 @@ func main() {
             msg_id        timeuuid,
             sender_id     text,
             sender_name   text,
+			content		  text,
             ts            timestamp,
             PRIMARY KEY ((group_id, bucket), msg_id)
         ) WITH CLUSTERING ORDER BY (msg_id DESC);`,

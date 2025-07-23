@@ -50,11 +50,11 @@ func PubSub() {
 // msg to all members on all servers with same group-id
 func AddUserToGroupServer(groupId, serverId, userId string) error {
 	key := fmt.Sprintf("group:%s:server:%s", groupId, serverId)
-	err := RedisConn.SAdd(redisCtx, key, userId)
+	err := RedisConn.SAdd(redisCtx, key, userId).Err()
 	if err != nil {
 		// TODO : what else can be done here ??
-		fmt.Println("couldn't add user to group-server")
-		return err.Err()
+		fmt.Println("couldn't add user to group-server", err)
+		return err
 	}
 	return nil
 }

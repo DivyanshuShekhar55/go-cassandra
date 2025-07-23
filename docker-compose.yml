@@ -12,6 +12,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    volumes:
+      - ./go/db.cql:/docker-entrypoint-initdb.d/init-db.cql
 
   redis:
     image: redis:alpine

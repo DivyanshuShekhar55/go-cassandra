@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS chat.group_messages (
     PRIMARY KEY ((group_id, bucket), msg_id)
 ) WITH CLUSTERING ORDER BY (msg_id DESC);
 
+ALTER TABLE chat.group_messages ADD content text;
+
 CREATE TABLE IF NOT EXISTS chat.group_members (
     group_id uuid,
     user_id uuid,

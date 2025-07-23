@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	db "github.com/DivyanshuShekhar55/go-cassandra.git/database"
@@ -22,9 +23,11 @@ type Message struct {
 }
 
 func SaveMessageGroupChat(message Message) error {
-	query := `INSERT INTO group_messages( group_id, bucket, msg_id, sender_id, sender_name, content, timestamp) VALUES(?, ?, ?, ?, ?, ?, ?, ?)`
+	query := `INSERT INTO group_messages( group_id, bucket, msg_id, sender_id, sender_name, content, ts) VALUES(?, ?, ?, ?, ?, ?, ?)`
 
-	err := db.ExecuteQuery(query, message.GroupID, message.Bucket, message.MsgID, message.SenderID, message.SenderName, message.Content, message.Timestamp)
+	// log.Printf("groupid :%s, bucket:%v, msgid:%v, senderid:%v, sendername:%v, content:%v, ts:%v", message.GroupID, message.Bucket, message.MsgID, message.SenderID, "random-name", message.Content, message.Timestamp)
+
+	err := db.ExecuteQuery(query, message.GroupID, message.Bucket, message.MsgID, message.SenderID, "random-name", message.Content, message.Timestamp)
 
 	if err != nil {
 		fmt.Println("error", err)

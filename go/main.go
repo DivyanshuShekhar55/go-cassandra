@@ -2,14 +2,23 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"os"
 
 	db "github.com/DivyanshuShekhar55/go-cassandra.git/database"
+	"github.com/google/uuid"
 )
 
 func main() {
 	db.SetupDBConnection()
 	NewRedisConnPool()
+
+	// generate a random id for current server
+	serverID := uuid.New().String()
+	os.Setenv("SERVERID", serverID)
+	log.Println("SERVER ID:", serverID)
+
 	rootCtx := context.Background()
 	ctx, cancel := context.WithCancel(rootCtx)
 
