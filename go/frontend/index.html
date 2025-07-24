@@ -260,10 +260,10 @@
       // Display structured chat messages
       function showChatMessage(msg) {
         // Optional: filter by selected group
-        if (msg.group_id && msg.group_id !== selectedGroupId) {
-          // Ignore messages from other groups for now
-          return;
-        }
+        // if (msg.group_id && msg.group_id !== selectedGroupId) {
+        //   // Ignore messages from other groups for now
+        //   return;
+        // }
 
         const div = document.createElement("div");
         div.className = "message";

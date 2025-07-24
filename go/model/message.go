@@ -2,7 +2,7 @@ package model
 
 import (
 	"fmt"
-	"log"
+	//"log"
 	"time"
 
 	db "github.com/DivyanshuShekhar55/go-cassandra.git/database"

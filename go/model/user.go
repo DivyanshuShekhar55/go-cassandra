@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"log"
 
 	db "github.com/DivyanshuShekhar55/go-cassandra.git/database"
 	"github.com/gocql/gocql"
@@ -25,19 +26,23 @@ func FetchAllUserGroups(userId string) (groups []string, err error) {
 		return nil, err
 	}
 
+	log.Println("here coming")
+
 	query := `SELECT group_id FROM user_groups WHERE user_id = ?`
-	result, err := db.ExecuteIterableQuery(query, uuid)
-	if err != nil {
-		// return error for now will be handled in manager.go
+
+	// do an iteration with an iterator
+	iter := db.Connection.Session.Query(query, uuid).Iter()
+
+	var groupID gocql.UUID
+
+	for iter.Scan(&groupID) {
+		groups = append(groups, groupID.String())
+	}
+
+	if err := iter.Close(); err != nil {
+		log.Println("Error closing iterator:", err)
 		return nil, err
 	}
 
-	// result is of type any need to convert into uuid
-	groups = make([]string, len(result))
-	for i, v := range result {
-		// If your ExecuteIterableQuery uses string as item, this is safe.
-		// If it returns UUID types, use v.(gocql.UUID).String()
-		groups[i] = v.(string)
-	}
 	return groups, nil
 }
