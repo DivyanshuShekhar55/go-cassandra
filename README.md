@@ -12,7 +12,7 @@ After running the container you will see logs from the seed-1 container, you can
 Then simply grab two user-ids from the "user_groups" section logs, who belong to the same group (check the group-ids).
 
 Visit the frontend to http://localhost, on two different browser windows/tabs.
-Paste the two user-ids into the id inputs. Start sending out messages.
+Paste the two user-ids into the id inputs. Start sending out messages. The three users will be spread out across 3 backend servers.
 
 ![alt text](image-2.png)
 
